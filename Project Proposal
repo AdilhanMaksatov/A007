@@ -1,0 +1,90 @@
+Location-Based Smart Alarm
+(Smart Alarm Clock with Geolocation Trigger)
+Author:
+Adilhan Maksatov
+Group: SCA-23B
+Subject: IEI
+Project Supervisor: Mirlan
+Institution: Alatoo International University
+City: Bishkek, Kyrgyzstan
+Year: 2026
+1. Relevance of the Project (Extended)
+In today's busy student life, especially in cities like Bishkek with heavy traffic, public transport delays (marshrutkas, buses), and long walking distances to campus, traditional alarm clocks often fail. They ring at a fixed time (e.g., 7:00 AM), but do not consider how long it actually takes to reach the destination. This leads to common problems:
+
+Waking up too early (unnecessary stress and lost sleep).
+Oversleeping and arriving late to classes or exams.
+Constant anxiety about time and transportation.
+
+Geolocation technology can solve this. A smart alarm should trigger based on proximity to a place: for example, sound when you are 300–800 meters away from Alatoo University, your bus stop, or home. This way, the alarm adapts to real conditions — if the bus is delayed, it wakes you later; if you're walking fast, it wakes you earlier.
+Existing solutions are limited:
+
+Google Maps has "departure reminders" or "time to leave" notifications, but not a dedicated loud alarm clock.
+Some reminder apps (Google Keep, Any.do) support location-based notes, but they are quiet notifications, not strong alarms.
+Specialized apps like "Bus Stop Alarm", "GPS Alarm+", "MapAlarmist" (open-source on GitHub), or "Location Reminder Alarm" exist, but many are outdated, paid, battery-heavy, or lack simple daily use for students.
+
+A free, lightweight, student-focused Android app with strong alarm sound, vibration, and easy map selection would fill this gap. It is especially useful for college students in Kyrgyzstan who rely on unpredictable public transport and live in dorms or far from campus.
+2. Project Goal and Objectives (Detailed)
+Main Goal:
+Create a mobile Android application that acts as an intelligent alarm clock. It primarily uses the user's real-time geolocation (GPS) and a predefined destination to decide when to wake up, making mornings more efficient and less stressful.
+Detailed Objectives:
+
+Research and understand Android geolocation services: GPS accuracy, battery optimization, background location access (important since Android 10+ restricts background location).
+Study existing apps and open-source examples (e.g., MapAlarmist on GitHub uses Google Maps + geofencing; Android's Geofence API for entrance/exit events).
+Design a user-friendly interface: home screen with list of alarms, map view for selecting location (pin drop), sliders for radius (100–1000 meters), sound/vibration choices.
+Implement core functionality:
+Add/edit/delete multiple alarms.
+Select destination on interactive map (using Google Maps or simpler OSM if API limits).
+Set custom radius and trigger type ("On Entry" — when entering the area).
+Background monitoring even when app is closed (using Foreground Service or WorkManager for battery efficiency).
+
+Add practical features:
+Alarm sound options (loud ringtones, increasing volume).
+Vibration + sound.
+Snooze button (but limited to avoid oversleeping).
+Optional time fallback (if location not available, use fixed time).
+
+Ensure privacy and battery safety: request permissions clearly (ACCESS_FINE_LOCATION, ACCESS_BACKGROUND_LOCATION), stop monitoring after trigger.
+Test in real scenarios: walking/bus to university, different battery modes, poor GPS signal.
+Prepare demo: APK file, short video showing setup and trigger, presentation slides.
+
+3. Object and Subject of Research
+
+Object: Modern mobile systems for time management, alarms, and location-aware reminders on Android devices.
+Subject: The technical mechanism of geofencing and location-based triggering for alarm activation, including how Android handles background location updates, transitions (enter/exit events), and notification delivery.
+
+4. Methods and Technologies (More Details)
+
+Programming Language: Kotlin (modern, concise, official for Android).
+Platform: Android (API level 26+ to support recent devices).
+IDE: Android Studio (free, includes emulator, debugger, layout editor).
+Geolocation Tools:
+Android's Fused Location Provider (combines GPS, Wi-Fi, cell towers for better accuracy and lower battery use).
+Geofencing API (from Google Play Services) — creates virtual "fences" around locations; app gets broadcast when user enters/exits.
+
+Map Integration: Google Maps SDK (for pin selection and radius visualization) — requires free API key.
+UI Design: Material 3 Design (modern look: cards, bottom sheets, sliders).
+Storage: SharedPreferences (simple JSON for saving alarms) or Room database if adding more features later.
+Background Work: Foreground Service (with notification) or WorkManager (scheduled checks) to monitor location without draining battery.
+Permissions Handling: Runtime requests for location + background access (with user explanation dialog).
+Testing Tools: Android Emulator (with mock locations), real smartphone for GPS accuracy.
+
+5. Expected Results (Expanded)
+
+Fully functional APK installable on Android phones.
+Example usage: Set alarm "Wake up near Alatoo University" with 500m radius → app monitors in background → rings loudly when you approach campus.
+Reliable performance: Triggers within 10–60 seconds of entering zone (depending on GPS).
+User controls: Turn on/off individual alarms, edit locations, choose sounds.
+Battery-friendly: Only active when alarms are enabled; stops after trigger.
+Documentation: This proposal, code comments, README on GitHub with screenshots.
+Demonstration: Live demo on phone or recorded video (setup → walking → alarm rings).
+Future ideas: Add time-based fallback, weather integration, multiple sounds per alarm.
+
+6. Novelty and Practical Value (Detailed)
+Novelty:
+While geofencing exists in reminders (e.g., Google Keep location notes), few apps turn it into a full alarm clock with loud sounds and snooze. Most are quiet notifications. Combining location as primary trigger (with optional time) + student-focused simplicity (easy map, Kyrgyz/Russian/English support if added) makes this unique for local users.
+Practical Value:
+
+For students: No more late arrivals to lectures; better sleep (wake only when really needed); less stress from transport unpredictability.
+Daily benefits: Useful for bus commuters, people with part-time jobs, or anyone with variable morning routines.
+Broader impact: Reduces tardiness → improves academic performance; promotes efficient time use.
+Educational value: Project demonstrates real Android development skills: permissions, services, maps, background tasks — great for portfolio or future jobs in mobile dev.
