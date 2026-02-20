@@ -1,0 +1,167 @@
+pipeline {
+
+    agent {
+        label 'ubuntu-18.04 && x64 && hw'
+    }
+
+    environment {
+        JAVA_HOME = '/usr/lib/jvm/java-8-openjdk-amd64/'
+    }
+
+    stages {
+        stage("prepare") {
+            steps {
+                script {
+                    def localProperties = """\
+                        sdk.dir=/opt/android-sdk/
+
+                        apiKey=${params.API_KEY}
+                        directionsApiKey=${params.DIRECTIONS_API_KEY}
+                    """.stripIndent()
+
+                    writeFile file: "local.properties", text: localProperties
+                }
+            }
+        }
+
+        stage("build") {
+            steps {
+                withCredentials([
+                    file(credentialsId: 'RELEASE_KEYSTORE', variable: 'RELEASE_KEYSTORE'),
+                    string(credentialsId: 'RELEASE_KEYSTORE_PASSWORD', variable: 'RELEASE_KEYSTORE_PASSWORD'),
+                    string(credentialsId: 'WEBGL_RELEASE_KEY_ALIAS', variable: 'RELEASE_KEY_ALIAS'),
+                    string(credentialsId: 'WEBGL_RELEASE_KEY_PASSWORD', variable: 'RELEASE_KEY_PASSWORD'),
+                ]) {
+                    sh './gradlew clean build bundle --info'
+
+                    // Signing output bundle
+                    sh """
+                        jarsigner \
+                            -keystore \$RELEASE_KEYSTORE \
+                            -storepass \$RELEASE_KEYSTORE_PASSWORD \
+                            -keypass \$RELEASE_KEY_PASSWORD \
+                            build/app/outputs/bundle/release/app-release.aab \
+                            \$RELEASE_KEY_ALIAS
+                    """
+                    sh 'jarsigner -verify build/app/outputs/bundle/release/app-release.aab -keystore \$RELEASE_KEYSTORE'
+
+                    // Signing output apk
+                    sh """
+                        /opt/android-sdk/build-tools/29.0.3/apksigner sign \
+                            --ks \$RELEASE_KEYSTORE \
+                            --key-pass env:RELEASE_KEY_PASSWORD \
+                            --ks-pass env:RELEASE_KEYSTORE_PASSWORD \
+                            --ks-key-alias \$RELEASE_KEY_ALIAS \
+                            --out build/app/outputs/apk/release/app-release.apk \
+                            build/app/outputs/apk/release/app-release-unsigned.apk
+                    """
+                    sh '/opt/android-sdk/build-tools/29.0.3/apksigner verify build/app/outputs/apk/release/app-release.apk'
+                }
+            }
+        }
+
+        stage("Instrumented tests") {
+            steps {
+                sh(
+                    label: "Подготовка образа эмулятора",
+                    script: """
+                        echo no | \
+                            /opt/android-sdk/tools/bin/avdmanager \
+                            create avd \
+                            -n webgl-tests \
+                            -k "system-images;android-29;google_apis;x86_64" \
+                            -f
+                    """
+                )
+
+                timeout(2) {
+                    sh(
+                        label: "Поднятие эмулятора",
+                        script: """
+                            /opt/android-sdk/emulator/emulator \
+                                -memory 2048 \
+                                -partition-size 2048 \
+                                -no-boot-anim \
+                                -noaudio \
+                                -no-snapshot \
+                                -no-window \
+                                -avd webgl-tests > /dev/null 2>&1 &
+                        """
+                    )
+
+                    // Скрипт для проверки инициализации эмулятора, т.к. запускаем его не в
+                    // интерактивном режиме.
+                    sh(
+                        label: "Ожидание загрузки эмулятора",
+                        script: """
+                            while [ -z "\$(/opt/android-sdk/platform-tools/adb devices | awk '{print \$2}' | grep device)" ];
+                            do
+                                echo "Waiting for emulator to boot"
+                                sleep 5
+                            done
+                            echo "Emulator booted"
+                        """
+                    )
+                }
+                script {
+                    try {
+                        timeout(10) {
+                            sh(
+                                label: "Тесты",
+                                script: "./gradlew connectedAndroidTest --info"
+                            )
+                        }
+                    }
+                    finally {
+                        publishHTML(target: [
+                            reportName: 'Sdk tests results',
+                            alwaysLinkToLastBuild: true,
+                            reportDir: 'build/mapsdk/reports/androidTests/connected',
+                            reportFiles: 'index.html',
+                            keepAll: true,
+                            allowMissing: false,
+                        ])
+
+                        publishHTML(target: [
+                            reportName: 'App tests results',
+                            alwaysLinkToLastBuild: true,
+                            reportDir: 'build/app/reports/androidTests/connected',
+                            reportFiles: 'index.html',
+                            keepAll: true,
+                            allowMissing: false,
+                        ])
+
+                        timeout(1) {
+                            sh(
+                                label: 'Saving logcat',
+                                script: """
+                                    /opt/android-sdk/platform-tools/adb logcat -d > logcat.txt
+                                """
+                            )
+                        }
+
+                        archiveArtifacts(artifacts: 'logcat.txt', allowEmptyArchive: true)
+                    }
+                }
+            }
+        }
+
+
+        stage("deploy") {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'ARTIFACTORY_USER',
+                        usernameVariable: 'ARTIFACTORY_USERNAME',
+                        passwordVariable: 'ARTIFACTORY_PASSWORD'
+                    ),
+                    string(credentialsId: 'ARTIFACTORY_HOST', variable: 'ARTIFACTORY_HOST')
+                ]) {
+                    sh './gradlew mapsdk:artifactoryPublish -PCI_RELEASE=true --info'
+                    archiveArtifacts(artifacts: 'build/app/outputs/apk/release/app-release.apk')
+                    archiveArtifacts(artifacts: 'build/app/outputs/bundle/release/app-release.aab')
+                }
+            }
+        }
+    }
+}

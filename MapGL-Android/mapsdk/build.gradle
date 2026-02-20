@@ -1,0 +1,149 @@
+buildscript {
+    ext.kotlin_version = '1.3.72'
+    ext {
+        dokkaVersion = "0.9.18"
+        dokkaJsonVersion = "1.0.3-SNAPSHOT"
+    }
+    repositories {
+        jcenter()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.github.dcendents:android-maven-gradle-plugin:2.0'
+        classpath "org.jetbrains.dokka:dokka-android-gradle-plugin:$dokkaVersion"
+    }
+}
+
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-android-extensions'
+apply plugin: 'com.github.dcendents.android-maven'
+apply plugin: "org.jetbrains.dokka-android"
+apply plugin: 'maven-publish'
+
+android {
+    compileSdkVersion 30
+    buildToolsVersion "29.0.3"
+
+    defaultConfig {
+        minSdkVersion 21
+        targetSdkVersion 30
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    dokka {
+        outputFormat = "json"
+        dokkaFatJar = "ru.dgis.dokka:dokka-json:${dokkaJsonVersion}"
+
+        // Do not create index pages for empty packages
+        skipEmptyPackages = true
+
+        //Do not output deprecated members. Applies globally, can be overridden by packageOptions
+        skipDeprecated = true
+
+        includeNonPublic = false
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_1_8.toString()
+    }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation 'androidx.appcompat:appcompat:1.2.0'
+    implementation 'androidx.core:core-ktx:1.3.1'
+    implementation 'androidx.lifecycle:lifecycle-extensions:2.2.0'
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    implementation 'com.google.android.gms:play-services-location:17.0.0'
+
+    testImplementation 'junit:junit:4.13'
+    androidTestImplementation 'androidx.test:runner:1.2.0'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
+}
+
+group = 'ru.dublgis.dgismobile.mapsdk'
+version = '1.10.0'
+
+
+task sourcesJar(type: Jar) {
+    from android.sourceSets.main.java.srcDirs
+    archiveClassifier.set('sources')
+}
+
+artifacts {
+    archives sourcesJar
+}
+
+def pomConfig = {
+    name = 'mapgl'
+    description = '2GIS Maps SDK for Android'
+    url = 'https://docs.2gis.com/en/android/webgl/maps/overview'
+
+    licenses {
+        license {
+            name = 'BSD 2-Clause'
+            url = 'https://opensource.org/licenses/BSD-2-Clause'
+        }
+    }
+    developers {
+        developer {
+            id = '2gis'
+            name = '2gis'
+            email = 'mapgl@2gis.ru'
+        }
+    }
+    scm {
+        connection = 'https://github.com/2gis/MapGL-Android.git'
+        developerConnection = 'https://github.com/2gis/MapGL-Android.git'
+        url = 'https://docs.2gis.com/en/android/webgl/maps/overview'
+    }
+}
+
+def publicationConfig = { versionName ->
+    from components.release
+
+    groupId 'ru.dublgis.dgismobile.mapsdk'
+    artifactId 'mapsdk'
+    version versionName
+
+    pom pomConfig
+
+    artifact sourcesJar
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            create('aar', MavenPublication, publicationConfig.curry("$version"))
+            create('aarSnapshot', MavenPublication, publicationConfig.curry("$version-SNAPSHOT"))
+        }
+    }
+
+    artifactoryPublish {
+        if (isReleaseBuild) {
+            publications(publishing.publications.aar)
+        } else {
+            publications(publishing.publications.aarSnapshot)
+        }
+    }
+}
